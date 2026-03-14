@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import type { LogList } from "@workspace/api-client-react";
 
-const BASE_URL = "/bot-api";
+const BASE_URL = "/api/bot-api";
 
 interface LogParams {
   limit?: number;

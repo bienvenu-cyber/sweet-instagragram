@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { CreatePostRequest, StatusMessage, PostCommentRequest } from "@workspace/api-client-react";
 
-const BASE_URL = "/bot-api";
+const BASE_URL = "/api/bot-api";
 
 export function useCreatePost() {
   const queryClient = useQueryClient();

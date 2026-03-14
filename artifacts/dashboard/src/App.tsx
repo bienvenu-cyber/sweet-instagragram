@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuthStatus } from "@/hooks/use-auth";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Loader2 } from "lucide-react";
+import { useEffect } from "react";
 
 // Pages
 import Dashboard from "@/pages/dashboard";
@@ -23,6 +24,12 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
   const [location, setLocation] = useLocation();
   const { data: auth, isLoading } = useAuthStatus();
 
+  useEffect(() => {
+    if (!isLoading && !auth?.logged_in && location !== "/login") {
+      setLocation("/login");
+    }
+  }, [isLoading, auth?.logged_in, location, setLocation]);
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center text-primary">
@@ -33,10 +40,6 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
   }
 
   if (!auth?.logged_in) {
-    // Prevent infinite loop by checking current path
-    if (location !== "/login") {
-      setLocation("/login");
-    }
     return null;
   }
 

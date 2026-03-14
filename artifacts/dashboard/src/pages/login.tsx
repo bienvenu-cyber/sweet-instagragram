@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Bot, AlertTriangle, ShieldCheck, Loader2 } from "lucide-react";
+import { Bot, AlertTriangle, ShieldCheck, Loader2, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,6 +21,7 @@ type LoginForm = z.infer<typeof loginSchema>;
 
 export default function Login() {
   const [, setLocation] = useLocation();
+  const [challengeError, setChallengeError] = useState(false);
   const { data: auth, isLoading: checkingAuth } = useAuthStatus();
   const loginMutation = useLogin();
   const { toast } = useToast();
@@ -30,25 +31,52 @@ export default function Login() {
     defaultValues: { username: "", password: "" }
   });
 
-  // Redirect if already logged in
-  if (!checkingAuth && auth?.logged_in) {
-    setLocation("/");
-    return null;
+  useEffect(() => {
+    if (!checkingAuth && auth?.logged_in) {
+      setLocation("/");
+    }
+  }, [checkingAuth, auth?.logged_in, setLocation]);
+
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
   }
 
+  if (auth?.logged_in) return null;
+
   const onSubmit = (data: LoginForm) => {
-    loginMutation.mutate(data, {
+    setChallengeError(false);
+    const cleanUsername = data.username.replace(/^@/, "");
+    loginMutation.mutate({ username: cleanUsername, password: data.password }, {
       onSuccess: (res) => {
-        toast({
-          title: "Connected Successfully",
-          description: `Logged in as ${res.username}`,
-        });
-        setLocation("/");
+        if (res.success) {
+          toast({
+            title: "Connected Successfully",
+            description: `Logged in as @${res.username}`,
+          });
+          setLocation("/");
+        } else {
+          if (res.message?.toLowerCase().includes("challenge") || res.message?.toLowerCase().includes("verification")) {
+            setChallengeError(true);
+          }
+          toast({
+            title: "Login Failed",
+            description: res.message,
+            variant: "destructive",
+          });
+        }
       },
       onError: (err) => {
+        const msg = err.message || "Login failed";
+        if (msg.toLowerCase().includes("challenge") || msg.toLowerCase().includes("verification")) {
+          setChallengeError(true);
+        }
         toast({
           title: "Connection Failed",
-          description: err.message,
+          description: msg,
           variant: "destructive",
         });
       }
@@ -57,11 +85,10 @@ export default function Login() {
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-background relative overflow-hidden">
-      {/* Abstract Background Elements */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 pointer-events-none">
         <img 
           src={`${import.meta.env.BASE_URL}images/auth-bg.png`} 
-          alt="Abstract Background" 
+          alt="Background" 
           className="w-full h-full object-cover opacity-40 mix-blend-screen"
         />
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-[128px]"></div>
@@ -88,19 +115,37 @@ export default function Login() {
           </CardHeader>
           
           <CardContent className="px-8 pb-10">
-            <div className="mb-6 p-4 rounded-xl bg-yellow-500/10 border border-yellow-500/20 flex gap-3 text-yellow-200">
+            <div className="mb-4 p-4 rounded-xl bg-yellow-500/10 border border-yellow-500/20 flex gap-3 text-yellow-200">
               <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5 text-yellow-500" />
               <div className="text-sm leading-relaxed">
-                If you have Two-Factor Authentication (2FA) enabled, you may need to approve the login from your Instagram app.
+                If you have 2FA enabled, approve the login from your Instagram app first.
               </div>
             </div>
 
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+            {challengeError && (
+              <div className="mb-4 p-4 rounded-xl bg-blue-500/10 border border-blue-500/20 flex gap-3 text-blue-200">
+                <Info className="w-5 h-5 shrink-0 mt-0.5 text-blue-400" />
+                <div className="text-sm leading-relaxed space-y-1">
+                  <p className="font-semibold text-blue-300">Instagram Security Check Required</p>
+                  <p>Instagram has flagged this login from a new location. Please:</p>
+                  <ol className="list-decimal list-inside space-y-1 text-xs mt-1">
+                    <li>Open the <strong>Instagram app</strong> on your phone</li>
+                    <li>Check for a security alert or notification</li>
+                    <li>Approve the login or enter the code sent by email/SMS</li>
+                    <li>Then try connecting again here</li>
+                  </ol>
+                </div>
+              </div>
+            )}
+
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5" noValidate>
               <div className="space-y-2">
                 <Label htmlFor="username">Instagram Username</Label>
                 <Input 
-                  id="username" 
-                  placeholder="@username" 
+                  id="username"
+                  type="text"
+                  autoComplete="username"
+                  placeholder="username (without @)" 
                   className="bg-background/50 h-12 rounded-xl focus-visible:ring-primary/30 focus-visible:border-primary transition-all"
                   {...form.register("username")} 
                 />
@@ -109,12 +154,11 @@ export default function Login() {
                 )}
               </div>
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="password">Password</Label>
-                </div>
+                <Label htmlFor="password">Password</Label>
                 <Input 
                   id="password" 
-                  type="password" 
+                  type="password"
+                  autoComplete="current-password"
                   placeholder="••••••••" 
                   className="bg-background/50 h-12 rounded-xl focus-visible:ring-primary/30 focus-visible:border-primary transition-all"
                   {...form.register("password")} 

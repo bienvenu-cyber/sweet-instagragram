@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { AuthStatus, LoginRequest, LoginResponse, StatusMessage, AccountInfo } from "@workspace/api-client-react";
 
-const BASE_URL = "/bot-api";
+const BASE_URL = "/api/bot-api";
 
 export function useAuthStatus() {
   return useQuery({
