@@ -174,11 +174,16 @@ export default function Login() {
                 disabled={loginMutation.isPending}
               >
                 {loginMutation.isPending ? (
-                  <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Connecting...</>
+                  <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Connexion en cours...</>
                 ) : (
                   <><ShieldCheck className="mr-2 h-5 w-5" /> Secure Connect</>
                 )}
               </Button>
+              {loginMutation.isPending && (
+                <p className="text-xs text-center text-muted-foreground animate-pulse">
+                  Instagram vérifie vos identifiants... Cela peut prendre jusqu'à 60 secondes.
+                </p>
+              )}
             </form>
           </CardContent>
         </Card>
