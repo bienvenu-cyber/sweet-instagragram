@@ -103,11 +103,18 @@ export default function Login() {
     }
     setCodeSubmitting(true);
     try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 90000);
+
       const res = await fetch(`${BASE_URL}/auth/challenge`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code: verifyCode.trim() }),
+        signal: controller.signal,
       });
+
+      clearTimeout(timer);
+
       const data = await res.json();
       if (data.success) {
         toast({ title: "✓ Connecté !", description: `@${data.username}` });
@@ -116,7 +123,11 @@ export default function Login() {
         toast({ title: "Code invalide", description: data.message, variant: "destructive" });
       }
     } catch (e: any) {
-      toast({ title: "Erreur", description: e.message, variant: "destructive" });
+      if (e.name === 'AbortError') {
+        toast({ title: "Timeout", description: "Le serveur met trop de temps. Réessaie dans 30 secondes.", variant: "destructive" });
+      } else {
+        toast({ title: "Erreur", description: e.message, variant: "destructive" });
+      }
     } finally {
       setCodeSubmitting(false);
     }
@@ -129,6 +140,9 @@ export default function Login() {
     }
     setCookieLoading(true);
     try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 90000); // 90 secondes
+
       const res = await fetch(`${BASE_URL}/auth/import-cookies`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -136,7 +150,11 @@ export default function Login() {
           cookie_string: cookieString.trim(),
           username: cookieUsername.trim() || undefined,
         }),
+        signal: controller.signal,
       });
+
+      clearTimeout(timer);
+
       const data = await res.json();
       if (data.success) {
         toast({ title: "✓ Connecté via cookies !", description: data.message });
@@ -145,7 +163,11 @@ export default function Login() {
         toast({ title: "Import échoué", description: data.message, variant: "destructive" });
       }
     } catch (e: any) {
-      toast({ title: "Erreur", description: e.message, variant: "destructive" });
+      if (e.name === 'AbortError') {
+        toast({ title: "Timeout", description: "Le serveur met trop de temps à répondre. Réessaie dans 30 secondes.", variant: "destructive" });
+      } else {
+        toast({ title: "Erreur", description: e.message, variant: "destructive" });
+      }
     } finally {
       setCookieLoading(false);
     }
