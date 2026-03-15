@@ -9,10 +9,12 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+const BOT_API_URL = process.env.BOT_API_URL || "http://localhost:8000";
+
 app.use(
   "/api/bot-api",
   createProxyMiddleware({
-    target: "http://localhost:8000",
+    target: BOT_API_URL,
     changeOrigin: true,
     pathRewrite: (path) => `/bot-api${path}`,
   })

@@ -1,0 +1,11 @@
+{
+  "buildCommand": "cd artifacts/dashboard && pnpm install && pnpm build",
+  "outputDirectory": "artifacts/dashboard/dist",
+  "framework": "vite",
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://YOUR_EXPRESS_PROXY.onrender.com/api/:path*"
+    }
+  ]
+}
