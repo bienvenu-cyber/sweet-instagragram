@@ -2,9 +2,9 @@ name: Keep Backend Alive
 
 on:
   schedule:
-    # Toutes les 5 minutes (GitHub Actions minimum)
+    # Toutes les 5 minutes
     - cron: '*/5 * * * *'
-  workflow_dispatch: # Permet de lancer manuellement
+  workflow_dispatch:
 
 jobs:
   ping:
@@ -12,8 +12,8 @@ jobs:
     steps:
       - name: Ping Express Proxy
         run: |
-          curl -f https://instagram-bot-proxy.onrender.com/api/healthz || echo "Proxy down"
+          curl -f https://instagram-bot-proxy-production.up.railway.app/api/healthz || echo "Proxy down"
           
       - name: Ping Python Bot API
         run: |
-          curl -f https://instagram-bot-api-diax.onrender.com/bot-api/health || echo "Bot API down"
+          curl -f https://instagram-bot-api-production-3dff.up.railway.app/bot-api/health || echo "Bot API down"
