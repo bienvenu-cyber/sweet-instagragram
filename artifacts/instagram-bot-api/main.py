@@ -40,12 +40,30 @@ async def lifespan(app: FastAPI):
             set_global_proxy(s.proxy_url)
             logger.info(f"[STARTUP] Proxy loaded from DB: {s.proxy_url[:40]}...")
         else:
-            logger.warning("[STARTUP] No proxy configured — connections will use Replit US IP")
-            logger.warning("[STARTUP] Instagram may block logins due to geolocation mismatch")
-            logger.warning("[STARTUP] Configure a proxy in Settings to fix this")
+            logger.warning("[STARTUP] No proxy — using direct US connection")
         db.close()
     except Exception as e:
         logger.error(f"[STARTUP] Failed to load proxy: {e}")
+
+    # Auto-restore Instagram session from saved file
+    try:
+        from instagram_client import ig_manager, SESSION_FILE
+        import json as _json
+        if SESSION_FILE.exists():
+            with open(SESSION_FILE) as f:
+                saved = _json.load(f)
+            saved_username = saved.get("username", "")
+            if saved_username:
+                logger.info(f"[STARTUP] Found saved session for '{saved_username}', restoring...")
+                result = ig_manager.resume_session(saved_username)
+                if result.get("success"):
+                    logger.info(f"[STARTUP] ✓ Auto-resumed session for @{saved_username}")
+                else:
+                    logger.warning(f"[STARTUP] Session restore failed: {result.get('message')}")
+        else:
+            logger.info("[STARTUP] No saved session found — user needs to log in")
+    except Exception as e:
+        logger.error(f"[STARTUP] Auto-resume error: {e}")
 
     yield
     logger.info("Instagram Bot API shutting down...")
