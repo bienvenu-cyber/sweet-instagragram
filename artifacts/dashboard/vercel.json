@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://instagram-bot-proxy.onrender.com/api/:path*"
+      "destination": "https://instagram-bot-proxy-production.up.railway.app/api/:path*"
     },
     {
       "source": "/(.*)",
