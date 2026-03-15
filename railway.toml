@@ -2,4 +2,4 @@
 builder = "nixpacks"
 
 [deploy]
-startCommand = "echo 'This is a monorepo. Deploy individual services from artifacts/ folders.'"
+startCommand = "echo 'Use individual service configs'"
