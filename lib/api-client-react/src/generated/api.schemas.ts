@@ -19,13 +19,6 @@ export interface LoginRequest {
   password: string;
 }
 
-export interface LoginResponse {
-  success: boolean;
-  message: string;
-  username?: string;
-  requires_2fa?: boolean;
-}
-
 export interface AuthStatus {
   logged_in: boolean;
   username?: string;
@@ -128,6 +121,18 @@ export interface BotSettings {
   post_daily_limit: number;
   auto_dm_enabled: boolean;
   auto_comment_enabled: boolean;
+  proxy_url?: string;
+  proxy_active?: boolean;
+}
+
+export interface LoginResponse {
+  success: boolean;
+  message: string;
+  username?: string;
+  requires_2fa?: boolean;
+  challenge?: boolean;
+  challenge_type?: string;
+  geo_blocked?: boolean;
 }
 
 export type GetDmThreadsParams = {

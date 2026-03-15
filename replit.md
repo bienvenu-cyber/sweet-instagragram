@@ -57,13 +57,21 @@ lib/
 
 - **Login**: Username + password via instagrapi (no Meta API needed)
 - **Session persistence**: Saves cookies/session to `/tmp/instagram_session.json`
+- **Geo-blocking handling**: Challenge UI with "I approved it - Retry" flow; detailed logs explain IP mismatch
+- **Proxy support**: Configure SOCKS5/HTTP proxy in Settings to bypass geo-blocking (stored in DB, loaded on startup)
 - **DMs**: Send single DMs, bulk send with configurable delays (anti-spam)
 - **Comments**: Comment on posts by URL with daily limits
 - **Posts**: Upload photos with captions
 - **Anti-spam**: Daily limits + random delays for all actions
 - **Queue**: Track pending/queued actions
 - **Logs**: Full activity log with filtering
-- **Settings**: Configure all rate limits and daily limits
+- **Settings**: Configure all rate limits, daily limits, and proxy URL
+
+## Known Issues & Workarounds
+
+- **Instagram geo-blocking**: Replit servers are in North Charleston, South Carolina (USA). If the Instagram account is normally used from Africa/Europe, Instagram triggers a security challenge. Fix: configure a SOCKS5 proxy in Settings, OR approve the connection from the Instagram mobile app when the challenge appears.
+- **Correct account**: `iamviral304` (not `iamviral309` — that account does not exist)
+- **Challenge flow**: When challenge appears, user opens Instagram app, taps "It was me", then clicks "J'ai approuvé" in the dashboard to retry
 
 ## API Endpoints (via /api/bot-api/*)
 
@@ -80,7 +88,9 @@ lib/
 - `DELETE /queue/{id}` — delete queue item
 - `GET /logs` — activity logs
 - `GET /settings` — bot settings
-- `PUT /settings` — update settings
+- `PUT /settings` — update settings (includes proxy_url)
+- `POST /settings/proxy/test` — test proxy connectivity
+- `POST /auth/challenge` — submit Instagram verification code
 
 ## Workflows
 

@@ -16,20 +16,37 @@ logging.basicConfig(
 )
 logger = logging.getLogger("instagram_bot")
 
-from database import init_db
+from database import init_db, SessionLocal, BotSettingsModel
+from instagram_client import set_global_proxy
 from routers import auth, account, dm, comments, posts, queue, logs, settings
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("=" * 60)
-    logger.info("Instagram Bot API starting up...")
+    logger.info("Instagram Bot API v1.0 starting up...")
     logger.info("=" * 60)
     try:
         init_db()
         logger.info("[DB] Database initialized successfully")
     except Exception as e:
         logger.error(f"[DB] Database initialization failed: {e}")
+
+    # Load proxy from DB on startup
+    try:
+        db = SessionLocal()
+        s = db.query(BotSettingsModel).filter(BotSettingsModel.id == 1).first()
+        if s and s.proxy_url:
+            set_global_proxy(s.proxy_url)
+            logger.info(f"[STARTUP] Proxy loaded from DB: {s.proxy_url[:40]}...")
+        else:
+            logger.warning("[STARTUP] No proxy configured — connections will use Replit US IP")
+            logger.warning("[STARTUP] Instagram may block logins due to geolocation mismatch")
+            logger.warning("[STARTUP] Configure a proxy in Settings to fix this")
+        db.close()
+    except Exception as e:
+        logger.error(f"[STARTUP] Failed to load proxy: {e}")
+
     yield
     logger.info("Instagram Bot API shutting down...")
 
@@ -73,6 +90,7 @@ app.include_router(settings.router, prefix="/bot-api/settings", tags=["settings"
 @app.get("/bot-api/health")
 def health():
     from database import SessionLocal, LogEntry
+    from instagram_client import get_global_proxy
     try:
         db = SessionLocal()
         count = db.query(LogEntry).count()
@@ -80,7 +98,11 @@ def health():
         db_status = "connected"
     except Exception as e:
         db_status = f"error: {e}"
-    return {"status": "ok", "db": db_status}
+    return {
+        "status": "ok",
+        "db": db_status,
+        "proxy_configured": bool(get_global_proxy()),
+    }
 
 
 if __name__ == "__main__":

@@ -24,6 +24,18 @@ logger = logging.getLogger("instagram_bot")
 
 SESSION_FILE = Path("/tmp/instagram_session.json")
 
+_proxy_url: Optional[str] = None
+
+
+def set_global_proxy(proxy: Optional[str]):
+    global _proxy_url
+    _proxy_url = proxy.strip() if proxy and proxy.strip() else None
+    logger.info(f"[PROXY] Proxy configured: {'YES (' + _proxy_url[:30] + '...)' if _proxy_url else 'NONE (direct connection)'}")
+
+
+def get_global_proxy() -> Optional[str]:
+    return _proxy_url
+
 
 class InstagramClientManager:
     def __init__(self):
@@ -36,6 +48,11 @@ class InstagramClientManager:
     def _create_client(self) -> Client:
         cl = Client()
         cl.delay_range = [1, 3]
+        if _proxy_url:
+            logger.info(f"[CLIENT] Setting proxy: {_proxy_url[:40]}...")
+            cl.set_proxy(_proxy_url)
+        else:
+            logger.info("[CLIENT] No proxy configured — direct connection (US IP)")
         return cl
 
     def _load_session(self, cl: Client, username: str) -> bool:
@@ -66,13 +83,14 @@ class InstagramClientManager:
             }
             with open(SESSION_FILE, "w") as f:
                 json.dump(session_data, f)
-            logger.info(f"[SESSION] Session saved for {username} -> {SESSION_FILE}")
+            logger.info(f"[SESSION] Session saved for {username}")
         except Exception as e:
             logger.error(f"[SESSION] Failed to save session: {e}")
 
     def login(self, username: str, password: str) -> dict:
         username = username.strip().lstrip("@").lower()
         logger.info(f"[LOGIN] Login request for '{username}'")
+        logger.info(f"[LOGIN] Proxy status: {'configured (' + (_proxy_url or '')[:30] + ')' if _proxy_url else 'NOT configured — using US IP (may be blocked by Instagram)'}")
 
         self._pending_challenge = False
         cl = self._create_client()
@@ -91,7 +109,7 @@ class InstagramClientManager:
                 SESSION_FILE.unlink(missing_ok=True)
                 cl = self._create_client()
 
-        logger.info(f"[LOGIN] Attempting fresh login for username='{username}'")
+        logger.info(f"[LOGIN] Attempting fresh login for '{username}'")
         try:
             cl.login(username, password)
             self._save_session(cl, username)
@@ -112,35 +130,33 @@ class InstagramClientManager:
             return {"success": False, "message": "Mot de passe incorrect.", "username": username, "requires_2fa": False}
 
         except ChallengeRequired as e:
-            logger.warning(f"[LOGIN] Challenge required for {username}: {e}")
+            logger.warning(f"[LOGIN] CHALLENGE REQUIRED for {username}")
+            logger.warning(f"[LOGIN] This is usually triggered by IP geolocation mismatch (server in USA, account used from Benin)")
             self._client = cl
             self._username = username
             self._password = password
             self._pending_challenge = True
 
+            challenge_type = "approve"
             try:
-                challenge_url = cl.last_json.get("challenge", {}).get("url", "") if hasattr(cl, "last_json") and cl.last_json else ""
-                logger.info(f"[CHALLENGE] URL: {challenge_url}")
-                cl.challenge_resolve(cl.last_json)
-                logger.info(f"[CHALLENGE] Challenge resolve called — code should be sent to phone/email")
-                return {
-                    "success": False,
-                    "message": "Instagram a envoyé un code de vérification sur ton téléphone/email. Entre le code ci-dessous pour continuer.",
-                    "username": username,
-                    "requires_2fa": False,
-                    "challenge": True,
-                    "challenge_type": "code",
-                }
+                last_json = cl.last_json if hasattr(cl, "last_json") and cl.last_json else {}
+                challenge_info = last_json.get("challenge", {})
+                logger.info(f"[CHALLENGE] Info: {challenge_info}")
+                cl.challenge_resolve(last_json)
+                challenge_type = "code"
+                logger.info(f"[CHALLENGE] Code sent to user's phone/email")
             except Exception as ce:
-                logger.warning(f"[CHALLENGE] Auto-resolve failed: {ce}")
-                return {
-                    "success": False,
-                    "message": "Instagram demande une vérification. Ouvre l'app Instagram → approuve la notification de sécurité → puis réessaie la connexion.",
-                    "username": username,
-                    "requires_2fa": False,
-                    "challenge": True,
-                    "challenge_type": "approve",
-                }
+                logger.warning(f"[CHALLENGE] Auto-resolve attempt failed: {ce}")
+
+            return {
+                "success": False,
+                "message": "Instagram bloque la connexion depuis les USA. Configure un proxy ou approuve depuis l'app Instagram.",
+                "username": username,
+                "requires_2fa": False,
+                "challenge": True,
+                "challenge_type": challenge_type,
+                "geo_blocked": not bool(_proxy_url),
+            }
 
         except ReloginAttemptExceeded:
             logger.error(f"[LOGIN] ReloginAttemptExceeded for {username}")
@@ -160,7 +176,7 @@ class InstagramClientManager:
 
     def submit_challenge_code(self, code: str) -> dict:
         if not self._pending_challenge or not self._client:
-            return {"success": False, "message": "Aucun challenge en attente. Relance la connexion."}
+            return {"success": False, "message": "Aucun challenge en attente. Relance la connexion d'abord."}
         logger.info(f"[CHALLENGE] Submitting code for {self._username}")
         try:
             self._client.challenge_resolve(self._client.last_json, code)

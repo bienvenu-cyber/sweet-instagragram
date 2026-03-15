@@ -1,8 +1,11 @@
 import os
-from sqlalchemy import create_engine, Column, Integer, String, Boolean, DateTime, Text, JSON
+import logging
+from sqlalchemy import create_engine, Column, Integer, String, Boolean, DateTime, Text, JSON, event, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime, timezone
+
+logger = logging.getLogger("instagram_bot")
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
 
@@ -51,6 +54,7 @@ class BotSettingsModel(Base):
     post_daily_limit = Column(Integer, default=3)
     auto_dm_enabled = Column(Boolean, default=False)
     auto_comment_enabled = Column(Boolean, default=False)
+    proxy_url = Column(String(500), nullable=True, default=None)
 
 
 def get_db():
@@ -61,13 +65,31 @@ def get_db():
         db.close()
 
 
+def _run_migrations(connection):
+    """Add new columns to existing tables without breaking existing data."""
+    migrations = [
+        "ALTER TABLE bot_settings ADD COLUMN IF NOT EXISTS proxy_url VARCHAR(500)",
+    ]
+    for sql in migrations:
+        try:
+            connection.execute(text(sql))
+            logger.info(f"[DB] Migration OK: {sql[:60]}")
+        except Exception as e:
+            logger.warning(f"[DB] Migration skipped ({sql[:40]}...): {e}")
+
+
 def init_db():
     Base.metadata.create_all(bind=engine)
+    with engine.connect() as connection:
+        _run_migrations(connection)
+        connection.commit()
+
     db = SessionLocal()
     try:
         settings = db.query(BotSettingsModel).filter(BotSettingsModel.id == 1).first()
         if not settings:
             db.add(BotSettingsModel(id=1))
             db.commit()
+            logger.info("[DB] Default settings created")
     finally:
         db.close()
