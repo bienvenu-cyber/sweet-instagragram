@@ -16,7 +16,7 @@ app.use(
   createProxyMiddleware({
     target: BOT_API_URL,
     changeOrigin: true,
-    pathRewrite: (path) => `/bot-api${path}`,
+    pathRewrite: (path) => path.replace("/api/bot-api", "/bot-api"),
   })
 );
 
